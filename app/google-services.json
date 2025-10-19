@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1036448617219",
+    "project_id": "corpchat-bf4a8",
+    "storage_bucket": "corpchat-bf4a8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1036448617219:android:79e6bcfa18a42a19768f36",
+        "android_client_info": {
+          "package_name": "com.example.messenger"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDLDdbJPGf1ygfBgQBzU5HQ9duNclwik6E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

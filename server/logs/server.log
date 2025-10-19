@@ -1,0 +1,62 @@
+2025-10-17 22:45:03,986 [INFO] Starting messenger server
+2025-10-17 22:47:18,835 [INFO] Starting messenger server
+2025-10-17 22:49:09,961 [INFO] Starting messenger server
+2025-10-17 22:49:09,964 [INFO] Server listening on 0.0.0.0:12345
+2025-10-17 22:54:24,462 [INFO] Starting messenger server
+2025-10-17 22:54:24,465 [INFO] Server listening on 0.0.0.0:12345
+2025-10-17 23:13:27,676 [ERROR] TLS handshake failed
+Traceback (most recent call last):
+  File "/media/sonar/data/Messenger/messenger_release_updated/server/main.py", line 300, in start_server
+    ssock = context.wrap_socket(newsock, server_side=True)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/ssl.py", line 1042, in _create
+    self.do_handshake()
+  File "/usr/lib/python3.12/ssl.py", line 1320, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLError: [SSL: WRONG_VERSION_NUMBER] wrong version number (_ssl.c:1000)
+2025-10-17 23:15:11,785 [ERROR] TLS handshake failed
+Traceback (most recent call last):
+  File "/media/sonar/data/Messenger/messenger_release_updated/server/main.py", line 300, in start_server
+    ssock = context.wrap_socket(newsock, server_side=True)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/ssl.py", line 1042, in _create
+    self.do_handshake()
+  File "/usr/lib/python3.12/ssl.py", line 1320, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLError: [SSL: WRONG_VERSION_NUMBER] wrong version number (_ssl.c:1000)
+2025-10-17 23:19:29,061 [ERROR] TLS handshake failed
+Traceback (most recent call last):
+  File "/media/sonar/data/Messenger/messenger_release_updated/server/main.py", line 300, in start_server
+    ssock = context.wrap_socket(newsock, server_side=True)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/ssl.py", line 1042, in _create
+    self.do_handshake()
+  File "/usr/lib/python3.12/ssl.py", line 1320, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLError: [SSL: SSLV3_ALERT_CERTIFICATE_UNKNOWN] sslv3 alert certificate unknown (_ssl.c:1000)
+2025-10-17 23:29:03,223 [INFO] Starting messenger server
+2025-10-17 23:29:03,226 [INFO] Server listening on 0.0.0.0:12345
+2025-10-17 23:34:49,483 [INFO] Starting messenger server
+2025-10-17 23:34:49,486 [INFO] Server listening on 0.0.0.0:12345
+2025-10-17 23:36:44,841 [ERROR] TLS handshake failed
+Traceback (most recent call last):
+  File "/media/sonar/data/Messenger/messenger_release_updated/server/main.py", line 300, in start_server
+    ssock = context.wrap_socket(newsock, server_side=True)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/ssl.py", line 1042, in _create
+    self.do_handshake()
+  File "/usr/lib/python3.12/ssl.py", line 1320, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLError: [SSL: SSLV3_ALERT_CERTIFICATE_UNKNOWN] sslv3 alert certificate unknown (_ssl.c:1000)
