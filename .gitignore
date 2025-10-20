@@ -2,3 +2,19 @@
 /.gradle/
 /app/build/
 /app/build/intermediates/javac/debug/classes/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Server data
+server/data/messenger.db
+server/data/uploads/
+server/logs/
+server/backup/
+
+# SSL certificates (keep example, ignore generated)
+# server/certs/*.pem
