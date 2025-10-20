@@ -33,24 +33,31 @@ class LoginActivity : AppCompatActivity() {
             if (username.isBlank() || password.isBlank()) {
                 Toast.makeText(this, "Введите логин и пароль", Toast.LENGTH_SHORT).show()
             } else {
-                scope.launch {
+                scope.launch(Dispatchers.IO) {
                     try {
                         SocketManager.connect("10.0.2.2", 12345) // <-- укажи IP сервера
                         SocketManager.sendLine("AUTH:$username:$password")
                         val response = SocketManager.readLine()
-                        if (response == "ACK") {
-                            Toast.makeText(this@LoginActivity, "Авторизация успешна", Toast.LENGTH_SHORT).show()
-                            // Navigate to contacts
-                            val intent = Intent(this@LoginActivity, ContactsActivity::class.java)
-                            startActivity(intent)
-                            finish()
+                        if (response?.startsWith("AUTH_OK:") == true) {
+                            val userId = response.substringAfter("AUTH_OK:").toIntOrNull() ?: 0
+                            launch(Dispatchers.Main) {
+                                Toast.makeText(this@LoginActivity, "Авторизация успешна", Toast.LENGTH_SHORT).show()
+                                // Navigate to contacts
+                                val intent = Intent(this@LoginActivity, ContactsActivity::class.java)
+                                intent.putExtra("userId", userId)
+                                intent.putExtra("username", username)
+                                startActivity(intent)
+                                finish()
+                            }
                         } else {
-                            Toast.makeText(this@LoginActivity, "Ошибка авторизации", Toast.LENGTH_SHORT).show()
+                            launch(Dispatchers.Main) {
+                                Toast.makeText(this@LoginActivity, "Ошибка авторизации", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     } catch (e: Exception) {
-                        Toast.makeText(this@LoginActivity, "Ошибка подключения: $e", Toast.LENGTH_LONG).show()
-                    } finally {
-                        SocketManager.disconnect()
+                        launch(Dispatchers.Main) {
+                            Toast.makeText(this@LoginActivity, "Ошибка подключения: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
                     }
                 }
             }

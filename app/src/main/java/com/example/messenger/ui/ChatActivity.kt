@@ -19,7 +19,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 class ChatActivity : AppCompatActivity() {
     private val job = Job()
@@ -27,6 +29,7 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var adapter: ChatAdapter
     private var currentUserId: Int = 0
     private var recipientId: Int = 0
+    private var isListening = false
     
     companion object {
         private const val REQUEST_PICK_FILE = 1001
@@ -36,9 +39,10 @@ class ChatActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat)
 
-        // Get recipient information from intent
+        // Get user information from intent
         recipientId = intent.getIntExtra("userId", 0)
         val username = intent.getStringExtra("username") ?: "Unknown"
+        currentUserId = intent.getIntExtra("currentUserId", 0)
         
         // Set title to show who we're chatting with
         title = "Чат с $username"
@@ -48,7 +52,7 @@ class ChatActivity : AppCompatActivity() {
         val btnSend = findViewById<Button>(R.id.btnSend)
         val btnAttach = findViewById<Button>(R.id.btnAttach)
 
-        adapter = ChatAdapter()
+        adapter = ChatAdapter(currentUserId)
         rvMessages.adapter = adapter
         rvMessages.layoutManager = LinearLayoutManager(this)
 
@@ -66,13 +70,94 @@ class ChatActivity : AppCompatActivity() {
         btnSend.setOnClickListener {
             val text = etMessage.text.toString()
             if (text.isNotEmpty()) {
-                repo.sendText(recipientId, text)
+                sendMessage(text)
                 etMessage.text.clear()
             }
         }
         
         btnAttach.setOnClickListener {
             openFilePicker()
+        }
+        
+        // Start listening for real-time updates
+        startMessageListener()
+    }
+    
+    private fun sendMessage(text: String) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                SocketManager.connect("10.0.2.2", 12345)
+                
+                // Send message
+                val msgData = JSONObject().apply {
+                    put("recipient_id", recipientId)
+                    put("text", text)
+                }
+                SocketManager.sendLine("SEND_MSG:$msgData")
+                
+                val response = SocketManager.readLine()
+                if (response?.startsWith("MSG_SENT:") == true) {
+                    val msgId = response.substringAfter("MSG_SENT:").toLongOrNull() ?: 0
+                    
+                    // Save to local database
+                    val msg = MessageEntity(
+                        id = msgId,
+                        senderId = currentUserId,
+                        recipientId = recipientId,
+                        groupId = null,
+                        text = text,
+                        filePath = null,
+                        timestamp = System.currentTimeMillis(),
+                        isRead = false
+                    )
+                    MessageRepository.get().insertLocal(msg)
+                }
+            } catch (e: Exception) {
+                launch(Dispatchers.Main) {
+                    Toast.makeText(this@ChatActivity, "Ошибка отправки: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            } finally {
+                SocketManager.disconnect()
+            }
+        }
+    }
+    
+    private fun startMessageListener() {
+        isListening = true
+        scope.launch(Dispatchers.IO) {
+            while (isListening) {
+                try {
+                    // Poll for new messages every 3 seconds
+                    delay(3000)
+                    SocketManager.connect("10.0.2.2", 12345)
+                    SocketManager.sendLine("GET_MESSAGES:$recipientId")
+                    
+                    val response = SocketManager.readLine()
+                    if (response?.startsWith("MESSAGES:") == true) {
+                        val jsonStr = response.substringAfter("MESSAGES:")
+                        val jsonArray = org.json.JSONArray(jsonStr)
+                        
+                        for (i in 0 until jsonArray.length()) {
+                            val msgObj = jsonArray.getJSONObject(i)
+                            val msg = MessageEntity(
+                                id = msgObj.getLong("id"),
+                                senderId = msgObj.getInt("sender_id"),
+                                recipientId = msgObj.getInt("recipient_id"),
+                                groupId = null,
+                                text = msgObj.optString("text", null),
+                                filePath = msgObj.optString("file_path", null),
+                                timestamp = msgObj.getLong("timestamp"),
+                                isRead = false
+                            )
+                            MessageRepository.get().insertLocal(msg)
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Ignore errors during polling
+                } finally {
+                    SocketManager.disconnect()
+                }
+            }
         }
     }
     
@@ -104,28 +189,61 @@ class ChatActivity : AppCompatActivity() {
         scope.launch(Dispatchers.IO) {
             try {
                 val fileName = getFileName(uri)
-                val repo = MessageRepository.get()
+                val fileSize = getFileSize(uri)
                 
-                // Save file info to database
-                val msg = MessageEntity(
-                    senderId = currentUserId,
-                    recipientId = recipientId,
-                    groupId = null,
-                    text = null,
-                    filePath = fileName,
-                    timestamp = System.currentTimeMillis(),
-                    isRead = false
-                )
-                repo.insertLocal(msg)
+                SocketManager.connect("10.0.2.2", 12345)
                 
-                // TODO: Upload file to server
-                launch(Dispatchers.Main) {
-                    Toast.makeText(this@ChatActivity, "Файл прикреплён: $fileName", Toast.LENGTH_SHORT).show()
+                // Request file upload
+                val uploadData = JSONObject().apply {
+                    put("recipient_id", recipientId)
+                    put("filename", fileName)
+                    put("size", fileSize)
+                }
+                SocketManager.sendLine("UPLOAD_FILE:$uploadData")
+                
+                val response = SocketManager.readLine()
+                if (response == "READY_FOR_FILE") {
+                    // Send file data
+                    contentResolver.openInputStream(uri)?.use { input ->
+                        val socket = SocketManager.getSocket()
+                        socket?.getOutputStream()?.let { output ->
+                            val buffer = ByteArray(8192)
+                            var bytesRead: Int
+                            while (input.read(buffer).also { bytesRead = it } != -1) {
+                                output.write(buffer, 0, bytesRead)
+                            }
+                            output.flush()
+                        }
+                    }
+                    
+                    val uploadResponse = SocketManager.readLine()
+                    if (uploadResponse?.startsWith("FILE_UPLOADED:") == true) {
+                        val msgId = uploadResponse.substringAfter("FILE_UPLOADED:").toLongOrNull() ?: 0
+                        
+                        // Save to local database
+                        val msg = MessageEntity(
+                            id = msgId,
+                            senderId = currentUserId,
+                            recipientId = recipientId,
+                            groupId = null,
+                            text = "[File: $fileName]",
+                            filePath = fileName,
+                            timestamp = System.currentTimeMillis(),
+                            isRead = false
+                        )
+                        MessageRepository.get().insertLocal(msg)
+                        
+                        launch(Dispatchers.Main) {
+                            Toast.makeText(this@ChatActivity, "Файл отправлен: $fileName", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 launch(Dispatchers.Main) {
-                    Toast.makeText(this@ChatActivity, "Ошибка: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@ChatActivity, "Ошибка загрузки файла: ${e.message}", Toast.LENGTH_LONG).show()
                 }
+            } finally {
+                SocketManager.disconnect()
             }
         }
     }
@@ -140,9 +258,21 @@ class ChatActivity : AppCompatActivity() {
         }
         return name
     }
+    
+    private fun getFileSize(uri: Uri): Long {
+        var size = 0L
+        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+            if (cursor.moveToFirst() && sizeIndex >= 0) {
+                size = cursor.getLong(sizeIndex)
+            }
+        }
+        return size
+    }
 
     override fun onDestroy() {
         super.onDestroy()
+        isListening = false
         job.cancel()
     }
 }

@@ -12,11 +12,25 @@ import com.example.messenger.data.entities.MessageEntity
 import java.text.SimpleDateFormat
 import java.util.*
 
-class ChatAdapter : ListAdapter<MessageEntity, ChatAdapter.MessageViewHolder>(MessageDiffCallback()) {
+class ChatAdapter(private val currentUserId: Int) : ListAdapter<MessageEntity, ChatAdapter.MessageViewHolder>(MessageDiffCallback()) {
+
+    companion object {
+        private const val VIEW_TYPE_SENT = 1
+        private const val VIEW_TYPE_RECEIVED = 2
+    }
+
+    override fun getItemViewType(position: Int): Int {
+        val message = getItem(position)
+        return if (message.senderId == currentUserId) VIEW_TYPE_SENT else VIEW_TYPE_RECEIVED
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MessageViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(android.R.layout.simple_list_item_2, parent, false)
+        val layoutId = if (viewType == VIEW_TYPE_SENT) {
+            R.layout.item_message_sent
+        } else {
+            R.layout.item_message_received
+        }
+        val view = LayoutInflater.from(parent.context).inflate(layoutId, parent, false)
         return MessageViewHolder(view)
     }
 
@@ -26,13 +40,13 @@ class ChatAdapter : ListAdapter<MessageEntity, ChatAdapter.MessageViewHolder>(Me
     }
 
     class MessageViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val text1: TextView = itemView.findViewById(android.R.id.text1)
-        private val text2: TextView = itemView.findViewById(android.R.id.text2)
-        private val dateFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+        private val tvMessageText: TextView = itemView.findViewById(R.id.tvMessageText)
+        private val tvMessageTime: TextView = itemView.findViewById(R.id.tvMessageTime)
+        private val dateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
         fun bind(message: MessageEntity) {
-            text1.text = message.text ?: message.filePath ?: "[Empty message]"
-            text2.text = "From: ${message.senderId} | ${dateFormat.format(Date(message.timestamp))}"
+            tvMessageText.text = message.text ?: message.filePath ?: "[Empty message]"
+            tvMessageTime.text = dateFormat.format(Date(message.timestamp))
         }
     }
 
