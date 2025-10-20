@@ -58,4 +58,8 @@ object SocketManager {
     fun isConnected(): Boolean {
         return socket?.isConnected == true && socket?.isClosed == false
     }
+    
+    fun getSocket(): Socket? {
+        return socket
+    }
 }
