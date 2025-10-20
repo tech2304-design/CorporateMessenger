@@ -1,4 +1,17 @@
-# Project exclude paths
-/.gradle/
-/app/build/
-/app/build/intermediates/javac/debug/classes/
+# Gradle / Android
+/.gradle
+/build
+**/build
+/local.properties
+/.idea
+*.iml
+*.log
+
+# Android Studio captures
+captures/
+
+# Kotlin
+*.kotlin_module
+
+# Generated
+**/build/generated/
