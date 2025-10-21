@@ -328,12 +328,13 @@ def handle_client(conn, addr):
 
 def start_server(debug_mode=False):
     global logger
-    logger = setup_logging(debug_mode)
     
     print("[+] Starting Corporate Messenger Server...")
     print(f"[+] Debug mode: {'ON' if debug_mode else 'OFF'}")
     if not debug_mode:
         print(f"[+] Logs will be written to {LOG_DIR}/")
+    
+    logger = setup_logging(debug_mode)
     
     init_database()
     print("[+] Database initialization complete")
