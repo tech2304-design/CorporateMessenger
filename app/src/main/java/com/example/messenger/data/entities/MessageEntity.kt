@@ -6,7 +6,7 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "messages")
 data class MessageEntity(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    @PrimaryKey(autoGenerate = true) val id: Long = 0L,
 
     @ColumnInfo(name = "sender_id")
     val senderId: Int,
@@ -27,12 +27,4 @@ data class MessageEntity(
 
     @ColumnInfo(name = "is_read")
     val isRead: Boolean
-)
-
-@Entity(tableName = "users")
-data class UserEntity(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val username: String,
-    @ColumnInfo(name = "password_hash") val passwordHash: String,
-    val salt: String
 )
