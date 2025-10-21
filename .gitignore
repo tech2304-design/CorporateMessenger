@@ -1,3 +1,4 @@
+
 # Project exclude paths
 /.gradle/
 /app/build/
@@ -18,3 +19,22 @@ server/backup/
 
 # SSL certificates (keep example, ignore generated)
 # server/certs/*.pem
+
+# Gradle / Android
+/.gradle
+/build
+**/build
+/local.properties
+/.idea
+*.iml
+*.log
+
+# Android Studio captures
+captures/
+
+# Kotlin
+*.kotlin_module
+
+# Generated
+**/build/generated/
+

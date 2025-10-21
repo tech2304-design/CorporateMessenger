@@ -2,6 +2,7 @@ package com.example.messenger.ui
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -9,17 +10,20 @@ import com.example.messenger.R
 import com.example.messenger.data.AppDatabase
 import com.example.messenger.data.MessageRepository
 import com.example.messenger.data.entities.UserEntity
+import com.example.messenger.network.SocketManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 
 class ContactsActivity : AppCompatActivity() {
     private val job = Job()
     private val scope = CoroutineScope(Dispatchers.Main + job)
     private lateinit var adapter: ContactsAdapter
+    private var currentUserId: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,6 +31,10 @@ class ContactsActivity : AppCompatActivity() {
 
         // Initialize MessageRepository
         MessageRepository.init(applicationContext)
+        
+        // Get current user info
+        currentUserId = intent.getIntExtra("userId", 0)
+        val currentUsername = intent.getStringExtra("username") ?: ""
 
         val rvContacts = findViewById<RecyclerView>(R.id.rvContacts)
         adapter = ContactsAdapter { user ->
@@ -34,19 +42,55 @@ class ContactsActivity : AppCompatActivity() {
             val intent = Intent(this, ChatActivity::class.java)
             intent.putExtra("userId", user.id)
             intent.putExtra("username", user.username)
+            intent.putExtra("currentUserId", currentUserId)
+            intent.putExtra("currentUsername", currentUsername)
             startActivity(intent)
         }
 
         rvContacts.adapter = adapter
         rvContacts.layoutManager = LinearLayoutManager(this)
 
-        // Load contacts from database
-        val db = AppDatabase.getInstance(this)
-        scope.launch {
-            db.userDao().getAllFlow().collect { users ->
-                runOnUiThread {
-                    adapter.submitList(users)
+        // Load contacts from server
+        loadContactsFromServer()
+    }
+    
+    private fun loadContactsFromServer() {
+        scope.launch(Dispatchers.IO) {
+            try {
+                SocketManager.connect("10.0.2.2", 12345)
+                SocketManager.sendLine("LIST_USERS")
+                val response = SocketManager.readLine()
+                
+                if (response?.startsWith("USERS:") == true) {
+                    val jsonStr = response.substringAfter("USERS:")
+                    val jsonArray = JSONArray(jsonStr)
+                    val users = mutableListOf<UserEntity>()
+                    
+                    for (i in 0 until jsonArray.length()) {
+                        val userObj = jsonArray.getJSONObject(i)
+                        val userId = userObj.getInt("id")
+                        val username = userObj.getString("username")
+                        
+                        // Don't include current user in contacts list
+                        if (userId != currentUserId) {
+                            users.add(UserEntity(id = userId, username = username))
+                        }
+                    }
+                    
+                    // Save to database
+                    val db = AppDatabase.getInstance(applicationContext)
+                    db.userDao().insertAll(users)
+                    
+                    launch(Dispatchers.Main) {
+                        adapter.submitList(users)
+                    }
                 }
+            } catch (e: Exception) {
+                launch(Dispatchers.Main) {
+                    Toast.makeText(this@ContactsActivity, "Ошибка загрузки контактов: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            } finally {
+                SocketManager.disconnect()
             }
         }
     }
