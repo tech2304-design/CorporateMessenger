@@ -34,6 +34,7 @@ captures/
 
 # Kotlin
 *.kotlin_module
+*.class
 
 # Generated
 **/build/generated/
