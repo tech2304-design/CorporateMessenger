@@ -1,20 +1,26 @@
 package com.example.messenger.ui
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.messenger.R
 import com.example.messenger.data.MessageRepository
 import com.example.messenger.data.entities.MessageEntity
 import com.example.messenger.network.SocketManager
+import com.example.messenger.utils.NotificationHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -29,10 +35,13 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var adapter: ChatAdapter
     private var currentUserId: Int = 0
     private var recipientId: Int = 0
+    private var recipientUsername: String = ""
     private var isListening = false
+    private var lastMessageId: Long = 0
     
     companion object {
         private const val REQUEST_PICK_FILE = 1001
+        private const val REQUEST_NOTIFICATION_PERMISSION = 1002
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,11 +50,26 @@ class ChatActivity : AppCompatActivity() {
 
         // Get user information from intent
         recipientId = intent.getIntExtra("userId", 0)
-        val username = intent.getStringExtra("username") ?: "Unknown"
+        recipientUsername = intent.getStringExtra("username") ?: "Unknown"
         currentUserId = intent.getIntExtra("currentUserId", 0)
         
         // Set title to show who we're chatting with
-        title = "Чат с $username"
+        title = "Чат с $recipientUsername"
+
+        // Initialize notification channel
+        NotificationHelper.createNotificationChannel(this)
+        
+        // Request notification permission for Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) 
+                != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    REQUEST_NOTIFICATION_PERMISSION
+                )
+            }
+        }
 
         val rvMessages = findViewById<RecyclerView>(R.id.rvMessages)
         val etMessage = findViewById<EditText>(R.id.etMessage)
@@ -63,6 +87,9 @@ class ChatActivity : AppCompatActivity() {
                 // Scroll to bottom when new message arrives
                 if (list.isNotEmpty()) {
                     rvMessages.smoothScrollToPosition(list.size - 1)
+                    if (list.isNotEmpty()) {
+                        lastMessageId = list.maxOf { it.id }
+                    }
                 }
             }
         }
@@ -137,19 +164,53 @@ class ChatActivity : AppCompatActivity() {
                         val jsonStr = response.substringAfter("MESSAGES:")
                         val jsonArray = org.json.JSONArray(jsonStr)
                         
+                        var hasNewMessage = false
                         for (i in 0 until jsonArray.length()) {
                             val msgObj = jsonArray.getJSONObject(i)
-                            val msg = MessageEntity(
-                                id = msgObj.getLong("id"),
-                                senderId = msgObj.getInt("sender_id"),
-                                recipientId = msgObj.getInt("recipient_id"),
-                                groupId = null,
-                                text = msgObj.optString("text", null),
-                                filePath = msgObj.optString("file_path", null),
-                                timestamp = msgObj.getLong("timestamp"),
-                                isRead = false
-                            )
-                            MessageRepository.get().insertLocal(msg)
+                            val msgId = msgObj.getLong("id")
+                            
+                            // Check if this is a new message
+                            if (msgId > lastMessageId) {
+                                hasNewMessage = true
+                                val senderId = msgObj.getInt("sender_id")
+                                val messageText = msgObj.optString("text", null)
+                                
+                                val msg = MessageEntity(
+                                    id = msgId,
+                                    senderId = senderId,
+                                    recipientId = msgObj.getInt("recipient_id"),
+                                    groupId = null,
+                                    text = messageText,
+                                    filePath = msgObj.optString("file_path", null),
+                                    timestamp = msgObj.getLong("timestamp"),
+                                    isRead = false
+                                )
+                                MessageRepository.get().insertLocal(msg)
+                                
+                                // Show notification if app is in background and message is from recipient
+                                if (senderId == recipientId && !NotificationHelper.isAppInForeground(this@ChatActivity)) {
+                                    launch(Dispatchers.Main) {
+                                        NotificationHelper.showMessageNotification(
+                                            this@ChatActivity,
+                                            recipientUsername,
+                                            messageText ?: "[Файл]",
+                                            recipientId,
+                                            currentUserId
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (hasNewMessage) {
+                            lastMessageId = jsonArray.let { arr ->
+                                var maxId = lastMessageId
+                                for (i in 0 until arr.length()) {
+                                    val id = arr.getJSONObject(i).getLong("id")
+                                    if (id > maxId) maxId = id
+                                }
+                                maxId
+                            }
                         }
                     }
                 } catch (e: Exception) {

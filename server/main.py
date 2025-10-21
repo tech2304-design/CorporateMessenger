@@ -6,6 +6,9 @@ import hashlib
 import os
 import json
 import time
+import argparse
+import logging
+from datetime import datetime
 
 HOST = '0.0.0.0'
 PORT = 12345
@@ -14,10 +17,42 @@ CERTFILE = 'certs/cert.pem'
 KEYFILE = 'certs/key.pem'
 DB_PATH = 'data/messenger.db'
 UPLOAD_DIR = 'data/uploads'
+LOG_DIR = 'logs'
 
 # Global client connections dictionary
 clients = {}  # {user_id: conn}
 clients_lock = threading.Lock()
+online_users = set()  # Track online users
+online_users_lock = threading.Lock()
+
+# Setup logging
+def setup_logging(debug_mode=False):
+    """Setup logging configuration"""
+    os.makedirs(LOG_DIR, exist_ok=True)
+    log_file = os.path.join(LOG_DIR, f'messenger_{datetime.now().strftime("%Y%m%d")}.log')
+    
+    logger = logging.getLogger('messenger')
+    logger.setLevel(logging.DEBUG if debug_mode else logging.INFO)
+    
+    # File handler - always log to file
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(logging.DEBUG)
+    file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(file_formatter)
+    logger.addHandler(file_handler)
+    
+    # Console handler - only if debug mode
+    if debug_mode:
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.DEBUG)
+        console_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        console_handler.setFormatter(console_formatter)
+        logger.addHandler(console_handler)
+    
+    return logger
+
+# Global logger (will be initialized in main)
+logger = None
 
 def init_database():
     """Initialize database with schema and test users"""
@@ -77,11 +112,19 @@ def authenticate(username, password):
     return None
 
 def get_users_list():
-    """Get list of all users"""
+    """Get list of all users with online status"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT id, username FROM users")
-    users = [{"id": row[0], "username": row[1]} for row in cursor.fetchall()]
+    users = []
+    with online_users_lock:
+        for row in cursor.fetchall():
+            user_id = row[0]
+            users.append({
+                "id": user_id,
+                "username": row[1],
+                "isOnline": user_id in online_users
+            })
     conn.close()
     return users
 
@@ -132,7 +175,7 @@ def broadcast_message(sender_id, recipient_id, message_data):
                 pass  # Connection might be dead
 
 def handle_client(conn, addr):
-    print(f"[+] Connection from {addr}")
+    logger.info(f"Connection from {addr}")
     user_id = None
     
     try:
@@ -142,7 +185,7 @@ def handle_client(conn, addr):
                 break
             
             message = data.decode().strip()
-            print(f"[{addr}] {message}")
+            logger.debug(f"[{addr}] {message}")
             
             # AUTH:username:password
             if message.startswith("AUTH:"):
@@ -154,10 +197,13 @@ def handle_client(conn, addr):
                     if user_id:
                         with clients_lock:
                             clients[user_id] = conn
+                        with online_users_lock:
+                            online_users.add(user_id)
                         conn.sendall(f"AUTH_OK:{user_id}\n".encode())
-                        print(f"[+] User {username} (ID: {user_id}) authenticated")
+                        logger.info(f"User {username} (ID: {user_id}) authenticated")
                     else:
                         conn.sendall(b"AUTH_FAIL\n")
+                        logger.warning(f"Failed authentication attempt for {username}")
                 else:
                     conn.sendall(b"AUTH_FAIL\n")
             
@@ -165,6 +211,7 @@ def handle_client(conn, addr):
             elif message == "LIST_USERS":
                 users = get_users_list()
                 conn.sendall(f"USERS:{json.dumps(users)}\n".encode())
+                logger.debug(f"Sent user list to {addr}")
             
             # SEND_MSG:{"recipient_id":N,"text":"..."}
             elif message.startswith("SEND_MSG:"):
@@ -181,6 +228,7 @@ def handle_client(conn, addr):
                     if recipient_id and text:
                         msg_id = save_message(user_id, recipient_id, text)
                         conn.sendall(f"MSG_SENT:{msg_id}\n".encode())
+                        logger.info(f"Message {msg_id} sent from user {user_id} to {recipient_id}")
                         
                         # Broadcast to recipient
                         message_data = {
@@ -195,6 +243,7 @@ def handle_client(conn, addr):
                         conn.sendall(b"ERROR:Invalid message format\n")
                 except json.JSONDecodeError:
                     conn.sendall(b"ERROR:Invalid JSON\n")
+                    logger.error(f"Invalid JSON from {addr}")
             
             # GET_MESSAGES:other_user_id
             elif message.startswith("GET_MESSAGES:"):
@@ -206,6 +255,7 @@ def handle_client(conn, addr):
                     other_user_id = int(message.split(":", 1)[1])
                     messages = get_messages(user_id, other_user_id)
                     conn.sendall(f"MESSAGES:{json.dumps(messages)}\n".encode())
+                    logger.debug(f"Sent messages between {user_id} and {other_user_id}")
                 except:
                     conn.sendall(b"ERROR:Invalid request\n")
             
@@ -239,6 +289,8 @@ def handle_client(conn, addr):
                                 f.write(chunk)
                                 received += len(chunk)
                         
+                        logger.info(f"File uploaded: {filename} ({file_size} bytes) from user {user_id}")
+                        
                         # Save message with file reference
                         msg_id = save_message(user_id, recipient_id, f"[File: {filename}]", file_path)
                         conn.sendall(f"FILE_UPLOADED:{msg_id}\n".encode())
@@ -257,21 +309,41 @@ def handle_client(conn, addr):
                         conn.sendall(b"ERROR:Invalid upload request\n")
                 except Exception as e:
                     conn.sendall(f"ERROR:{str(e)}\n".encode())
+                    logger.error(f"File upload error from {addr}: {e}")
             
             else:
                 conn.sendall(b"ERROR:Unknown command\n")
                 
     except Exception as e:
-        print(f"[!] Error with {addr}: {e}")
+        logger.error(f"Error with {addr}: {e}")
     finally:
         if user_id:
             with clients_lock:
                 clients.pop(user_id, None)
+            with online_users_lock:
+                online_users.discard(user_id)
+            logger.info(f"User {user_id} disconnected")
         conn.close()
-        print(f"[-] Disconnected {addr}")
+        logger.info(f"Disconnected {addr}")
 
-def start_server():
+def start_server(debug_mode=False):
+    global logger
+    
+    print("[+] Starting Corporate Messenger Server...")
+    print(f"[+] Debug mode: {'ON' if debug_mode else 'OFF'}")
+    if not debug_mode:
+        print(f"[+] Logs will be written to {LOG_DIR}/")
+    
+    logger = setup_logging(debug_mode)
+    
     init_database()
+    print("[+] Database initialization complete")
+    
+    if not debug_mode:
+        print("[+] Server is now running. All further logs will be written to file.")
+        print("[+] Use -d flag to see debug output on console.")
+    
+    logger.info("Server starting...")
     
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
     context.load_cert_chain(certfile=CERTFILE, keyfile=KEYFILE)
@@ -282,6 +354,7 @@ def start_server():
     bindsocket.bind((HOST, PORT))
     bindsocket.listen(5)
     print(f"[+] Server listening on {HOST}:{PORT}")
+    logger.info(f"Server listening on {HOST}:{PORT}")
 
     while True:
         try:
@@ -290,10 +363,15 @@ def start_server():
                 conn = context.wrap_socket(newsocket, server_side=True)
                 threading.Thread(target=handle_client, args=(conn, fromaddr), daemon=True).start()
             except ssl.SSLError as e:
-                print(f"[!] SSL error from {fromaddr}: {e}")
+                logger.error(f"SSL error from {fromaddr}: {e}")
                 newsocket.close()
         except Exception as e:
-            print(f"[!] Error accepting connection: {e}")
+            logger.error(f"Error accepting connection: {e}")
 
 if __name__ == "__main__":
-    start_server()
+    parser = argparse.ArgumentParser(description='Corporate Messenger Server')
+    parser.add_argument('-d', '--debug', action='store_true',
+                        help='Enable debug mode (print logs to console)')
+    args = parser.parse_args()
+    
+    start_server(debug_mode=args.debug)

@@ -70,10 +70,11 @@ class ContactsActivity : AppCompatActivity() {
                         val userObj = jsonArray.getJSONObject(i)
                         val userId = userObj.getInt("id")
                         val username = userObj.getString("username")
+                        val isOnline = userObj.optBoolean("isOnline", false)
                         
                         // Don't include current user in contacts list
                         if (userId != currentUserId) {
-                            users.add(UserEntity(id = userId, username = username))
+                            users.add(UserEntity(id = userId, username = username, isOnline = isOnline))
                         }
                     }
                     
