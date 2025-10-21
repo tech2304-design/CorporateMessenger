@@ -1,0 +1,37 @@
+# .github/workflows/ci.yml
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17 (Temurin) and cache Gradle
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Cache Gradle wrapper distribution
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/wrapper/dists
+          key: ${{ runner.os }}-gradle-wrapper-${{ hashFiles('**/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-wrapper-
+
+      - name: Ensure gradlew is executable
+        run: chmod +x ./gradlew
+
+      - name: Build (Gradle)
+        env:
+          GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
+        run: ./gradlew build --no-daemon --stacktrace

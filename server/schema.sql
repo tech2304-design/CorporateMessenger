@@ -1,0 +1,43 @@
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  salt TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS groups (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  group_name TEXT NOT NULL,
+  creator_id INTEGER NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(creator_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS group_members (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  group_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  role TEXT DEFAULT 'member',
+  FOREIGN KEY(group_id) REFERENCES groups(id) ON DELETE CASCADE,
+  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  sender_id INTEGER NOT NULL,
+  recipient_id INTEGER,
+  group_id INTEGER,
+  message_text TEXT,
+  timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+  file_path TEXT,
+  is_read INTEGER DEFAULT 0,
+  FOREIGN KEY(sender_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY(recipient_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY(group_id) REFERENCES groups(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_recipient ON messages(recipient_id);
+CREATE INDEX IF NOT EXISTS idx_messages_group ON messages(group_id);

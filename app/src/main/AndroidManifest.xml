@@ -1,0 +1,39 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Разрешение на интернет -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+
+    <application
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:allowBackup="true"
+        android:label="Messenger"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Messenger">
+
+        <!-- Стартовая Activity -->
+        <activity
+            android:name=".ui.LoginActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
+        <!-- Остальные Activity -->
+        <activity
+            android:name=".ui.ChatActivity"
+            android:exported="false"/>
+        
+        <activity
+            android:name=".ui.ContactsActivity"
+            android:exported="false"/>
+    </application>
+
+</manifest>
