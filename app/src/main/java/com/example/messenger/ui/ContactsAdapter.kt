@@ -4,9 +4,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.example.messenger.R
 import com.example.messenger.data.entities.UserEntity
 
 class ContactsAdapter(
@@ -15,7 +17,7 @@ class ContactsAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ContactViewHolder {
         val view = LayoutInflater.from(parent.context)
-            .inflate(android.R.layout.simple_list_item_2, parent, false)
+            .inflate(R.layout.item_contact, parent, false)
         return ContactViewHolder(view, onItemClick)
     }
 
@@ -28,12 +30,16 @@ class ContactsAdapter(
         itemView: View,
         private val onItemClick: (UserEntity) -> Unit
     ) : RecyclerView.ViewHolder(itemView) {
-        private val text1: TextView = itemView.findViewById(android.R.id.text1)
-        private val text2: TextView = itemView.findViewById(android.R.id.text2)
+        private val tvUsername: TextView = itemView.findViewById(R.id.tvUsername)
+        private val tvStatus: TextView = itemView.findViewById(R.id.tvStatus)
+        private val statusIndicator: View = itemView.findViewById(R.id.statusIndicator)
 
         fun bind(user: UserEntity) {
-            text1.text = user.username
-            text2.text = "ID: ${user.id}"
+            tvUsername.text = user.username
+            tvStatus.text = if (user.isOnline) "В сети" else "Не в сети"
+            
+            // Set status indicator color
+            statusIndicator.isSelected = user.isOnline
             
             itemView.setOnClickListener {
                 onItemClick(user)
