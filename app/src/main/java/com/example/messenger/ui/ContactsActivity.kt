@@ -10,6 +10,7 @@ import com.example.messenger.R
 import com.example.messenger.data.AppDatabase
 import com.example.messenger.data.MessageRepository
 import com.example.messenger.data.entities.UserEntity
+import com.example.messenger.network.ServerConfig
 import com.example.messenger.network.SocketManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -57,7 +58,7 @@ class ContactsActivity : AppCompatActivity() {
     private fun loadContactsFromServer() {
         scope.launch(Dispatchers.IO) {
             try {
-                SocketManager.connect("10.0.2.2", 12345)
+                SocketManager.connect(ServerConfig.SERVER_HOST, ServerConfig.SERVER_PORT)
                 SocketManager.sendLine("LIST_USERS")
                 val response = SocketManager.readLine()
                 
