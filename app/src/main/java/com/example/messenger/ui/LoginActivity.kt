@@ -7,6 +7,7 @@ import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.example.messenger.R
+import com.example.messenger.network.ServerConfig
 import com.example.messenger.network.SocketManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +36,7 @@ class LoginActivity : AppCompatActivity() {
             } else {
                 scope.launch(Dispatchers.IO) {
                     try {
-                        SocketManager.connect("10.0.2.2", 12345) // <-- укажи IP сервера
+                        SocketManager.connect(ServerConfig.SERVER_HOST, ServerConfig.SERVER_PORT)
                         SocketManager.sendLine("AUTH:$username:$password")
                         val response = SocketManager.readLine()
                         if (response?.startsWith("AUTH_OK:") == true) {

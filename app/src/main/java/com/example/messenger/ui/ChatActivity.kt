@@ -19,6 +19,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.messenger.R
 import com.example.messenger.data.MessageRepository
 import com.example.messenger.data.entities.MessageEntity
+import com.example.messenger.network.ServerConfig
 import com.example.messenger.network.SocketManager
 import com.example.messenger.utils.NotificationHelper
 import kotlinx.coroutines.CoroutineScope
@@ -113,7 +114,7 @@ class ChatActivity : AppCompatActivity() {
     private fun sendMessage(text: String) {
         scope.launch(Dispatchers.IO) {
             try {
-                SocketManager.connect("10.0.2.2", 12345)
+                SocketManager.connect(ServerConfig.SERVER_HOST, ServerConfig.SERVER_PORT)
                 
                 // Send message
                 val msgData = JSONObject().apply {
@@ -156,7 +157,7 @@ class ChatActivity : AppCompatActivity() {
                 try {
                     // Poll for new messages every 3 seconds
                     delay(3000)
-                    SocketManager.connect("10.0.2.2", 12345)
+                    SocketManager.connect(ServerConfig.SERVER_HOST, ServerConfig.SERVER_PORT)
                     SocketManager.sendLine("GET_MESSAGES:$recipientId")
                     
                     val response = SocketManager.readLine()
@@ -252,7 +253,7 @@ class ChatActivity : AppCompatActivity() {
                 val fileName = getFileName(uri)
                 val fileSize = getFileSize(uri)
                 
-                SocketManager.connect("10.0.2.2", 12345)
+                SocketManager.connect(ServerConfig.SERVER_HOST, ServerConfig.SERVER_PORT)
                 
                 // Request file upload
                 val uploadData = JSONObject().apply {

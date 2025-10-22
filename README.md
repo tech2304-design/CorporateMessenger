@@ -87,12 +87,15 @@ CorpMessenger/
    - Дождаться синхронизации Gradle
 
 2. **Настроить IP адрес сервера**:
-   В файле `app/src/main/java/com/example/messenger/ui/LoginActivity.kt`:
+   В файле `app/src/main/java/com/example/messenger/network/ServerConfig.kt`:
    ```kotlin
-   SocketManager.connect("YOUR_SERVER_IP", 12345)
+   const val SERVER_HOST = "10.0.2.2"  // Измените на IP вашего сервера
+   const val SERVER_PORT = 12345
    ```
-   Замените `YOUR_SERVER_IP` на IP адрес вашего сервера.
-   Для эмулятора используйте `10.0.2.2` (localhost хоста).
+   **Важно!** Значение `SERVER_HOST` зависит от среды:
+   - **Для эмулятора**: используйте `"10.0.2.2"` (localhost хоста)
+   - **Для реального устройства**: используйте локальный IP сервера (например, `"192.168.1.100"`)
+   - **Для продакшена**: используйте доменное имя или публичный IP (например, `"messenger.example.com"`)
 
 3. **Собрать и установить приложение**:
    - Подключить Android устройство или запустить эмулятор
