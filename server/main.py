@@ -8,6 +8,8 @@ import json
 import time
 import argparse
 import logging
+import signal
+import sys
 from datetime import datetime
 
 HOST = '0.0.0.0'
@@ -368,10 +370,20 @@ def start_server(debug_mode=False):
         except Exception as e:
             logger.error(f"Error accepting connection: {e}")
 
+def signal_handler(sig, frame):
+    """Handle Ctrl+C gracefully"""
+    print("\n[+] Сервер остановлен")
+    if logger:
+        logger.info("Server stopped by user")
+    sys.exit(0)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Corporate Messenger Server')
     parser.add_argument('-d', '--debug', action='store_true',
                         help='Enable debug mode (print logs to console)')
     args = parser.parse_args()
+    
+    # Register signal handler for graceful shutdown
+    signal.signal(signal.SIGINT, signal_handler)
     
     start_server(debug_mode=args.debug)

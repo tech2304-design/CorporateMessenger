@@ -47,6 +47,7 @@ class LoginActivity : AppCompatActivity() {
                                 val intent = Intent(this@LoginActivity, ContactsActivity::class.java)
                                 intent.putExtra("userId", userId)
                                 intent.putExtra("username", username)
+                                intent.putExtra("password", password)
                                 startActivity(intent)
                                 finish()
                             }
