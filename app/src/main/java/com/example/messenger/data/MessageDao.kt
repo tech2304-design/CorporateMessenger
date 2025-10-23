@@ -15,8 +15,11 @@ interface MessageDao {
     // Возвращаем Flow списка сообщений для пользователя (используем Long)
     @Query("""
         SELECT * FROM messages
-        WHERE sender_id = :userId OR recipient_id = :userId
-        ORDER BY timestamp ASC
+        WHERE (sender_id = :userId OR recipient_id = :userId)
+        ORDER BY timestamp ASC, id ASC
     """)
     fun getForUserFlow(userId: Long): Flow<List<MessageEntity>>
+    
+    @Query("DELETE FROM messages WHERE id = :messageId")
+    suspend fun deleteById(messageId: Long)
 }

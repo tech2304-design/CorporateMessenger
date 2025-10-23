@@ -81,7 +81,9 @@ class ChatActivity : AppCompatActivity() {
         val btnSend = findViewById<Button>(R.id.btnSend)
         val btnAttach = findViewById<Button>(R.id.btnAttach)
 
-        adapter = ChatAdapter(currentUserId)
+        adapter = ChatAdapter(currentUserId) { message, deleteForEveryone ->
+            deleteMessage(message, deleteForEveryone)
+        }
         rvMessages.adapter = adapter
         rvMessages.layoutManager = LinearLayoutManager(this)
 
@@ -362,6 +364,57 @@ class ChatActivity : AppCompatActivity() {
             }
         }
         return size
+    }
+    
+    private fun deleteMessage(message: MessageEntity, deleteForEveryone: Boolean) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                if (deleteForEveryone) {
+                    // Delete on server for everyone
+                    SocketManager.connect(ServerConfig.SERVER_HOST, ServerConfig.SERVER_PORT)
+                    
+                    // Authenticate first
+                    SocketManager.sendLine("AUTH:$currentUsername:$currentPassword")
+                    val authResponse = SocketManager.readLine()
+                    if (authResponse?.startsWith("AUTH_OK:") != true) {
+                        launch(Dispatchers.Main) {
+                            Toast.makeText(this@ChatActivity, "Ошибка аутентификации", Toast.LENGTH_SHORT).show()
+                        }
+                        return@launch
+                    }
+                    
+                    // Send delete request
+                    SocketManager.sendLine("DELETE_MSG:${message.id}")
+                    val response = SocketManager.readLine()
+                    
+                    if (response?.startsWith("MSG_DELETED") == true) {
+                        // Delete locally as well
+                        MessageRepository.get().deleteLocal(message.id)
+                        launch(Dispatchers.Main) {
+                            Toast.makeText(this@ChatActivity, "Сообщение удалено", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        launch(Dispatchers.Main) {
+                            Toast.makeText(this@ChatActivity, "Ошибка удаления", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    // Delete only locally
+                    MessageRepository.get().deleteLocal(message.id)
+                    launch(Dispatchers.Main) {
+                        Toast.makeText(this@ChatActivity, "Сообщение удалено", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                launch(Dispatchers.Main) {
+                    Toast.makeText(this@ChatActivity, "Ошибка удаления: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            } finally {
+                if (deleteForEveryone) {
+                    SocketManager.disconnect()
+                }
+            }
+        }
     }
 
     override fun onDestroy() {
