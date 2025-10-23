@@ -35,6 +35,8 @@ class ChatActivity : AppCompatActivity() {
     private val scope = CoroutineScope(Dispatchers.Main + job)
     private lateinit var adapter: ChatAdapter
     private var currentUserId: Long = 0L
+    private var currentUsername: String = ""
+    private var currentPassword: String = ""
     private var recipientId: Long = 0L
     private var recipientUsername: String = ""
     private var isListening = false
@@ -53,6 +55,8 @@ class ChatActivity : AppCompatActivity() {
         recipientId = intent.getLongExtra("userId", intent.getIntExtra("userId", 0).toLong())
         recipientUsername = intent.getStringExtra("username") ?: "Unknown"
         currentUserId = intent.getLongExtra("currentUserId", intent.getIntExtra("currentUserId", 0).toLong())
+        currentUsername = intent.getStringExtra("currentUsername") ?: ""
+        currentPassword = intent.getStringExtra("currentPassword") ?: ""
         
         // Set title to show who we're chatting with
         title = "Чат с $recipientUsername"
@@ -116,6 +120,16 @@ class ChatActivity : AppCompatActivity() {
             try {
                 SocketManager.connect(ServerConfig.SERVER_HOST, ServerConfig.SERVER_PORT)
                 
+                // Authenticate first
+                SocketManager.sendLine("AUTH:$currentUsername:$currentPassword")
+                val authResponse = SocketManager.readLine()
+                if (authResponse?.startsWith("AUTH_OK:") != true) {
+                    launch(Dispatchers.Main) {
+                        Toast.makeText(this@ChatActivity, "Ошибка аутентификации", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
+                
                 // Send message
                 val msgData = JSONObject().apply {
                     put("recipient_id", recipientId)
@@ -158,6 +172,14 @@ class ChatActivity : AppCompatActivity() {
                     // Poll for new messages every 3 seconds
                     delay(3000)
                     SocketManager.connect(ServerConfig.SERVER_HOST, ServerConfig.SERVER_PORT)
+                    
+                    // Authenticate first
+                    SocketManager.sendLine("AUTH:$currentUsername:$currentPassword")
+                    val authResponse = SocketManager.readLine()
+                    if (authResponse?.startsWith("AUTH_OK:") != true) {
+                        continue
+                    }
+                    
                     SocketManager.sendLine("GET_MESSAGES:$recipientId")
                     
                     val response = SocketManager.readLine()
@@ -254,6 +276,16 @@ class ChatActivity : AppCompatActivity() {
                 val fileSize = getFileSize(uri)
                 
                 SocketManager.connect(ServerConfig.SERVER_HOST, ServerConfig.SERVER_PORT)
+                
+                // Authenticate first
+                SocketManager.sendLine("AUTH:$currentUsername:$currentPassword")
+                val authResponse = SocketManager.readLine()
+                if (authResponse?.startsWith("AUTH_OK:") != true) {
+                    launch(Dispatchers.Main) {
+                        Toast.makeText(this@ChatActivity, "Ошибка аутентификации", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
                 
                 // Request file upload
                 val uploadData = JSONObject().apply {

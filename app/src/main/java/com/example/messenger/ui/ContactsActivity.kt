@@ -36,6 +36,7 @@ class ContactsActivity : AppCompatActivity() {
         // Get current user info
         currentUserId = intent.getLongExtra("userId", intent.getIntExtra("userId", 0).toLong())
         val currentUsername = intent.getStringExtra("username") ?: ""
+        val currentPassword = intent.getStringExtra("password") ?: ""
 
         val rvContacts = findViewById<RecyclerView>(R.id.rvContacts)
         adapter = ContactsAdapter { user ->
@@ -45,6 +46,7 @@ class ContactsActivity : AppCompatActivity() {
             intent.putExtra("username", user.username)
             intent.putExtra("currentUserId", currentUserId)
             intent.putExtra("currentUsername", currentUsername)
+            intent.putExtra("currentPassword", currentPassword)
             startActivity(intent)
         }
 
@@ -59,6 +61,21 @@ class ContactsActivity : AppCompatActivity() {
         scope.launch(Dispatchers.IO) {
             try {
                 SocketManager.connect(ServerConfig.SERVER_HOST, ServerConfig.SERVER_PORT)
+                
+                // Authenticate first
+                val currentUsername = intent.getStringExtra("username") ?: ""
+                val currentPassword = intent.getStringExtra("password") ?: ""
+                if (currentUsername.isNotEmpty() && currentPassword.isNotEmpty()) {
+                    SocketManager.sendLine("AUTH:$currentUsername:$currentPassword")
+                    val authResponse = SocketManager.readLine()
+                    if (authResponse?.startsWith("AUTH_OK:") != true) {
+                        launch(Dispatchers.Main) {
+                            Toast.makeText(this@ContactsActivity, "Ошибка аутентификации", Toast.LENGTH_SHORT).show()
+                        }
+                        return@launch
+                    }
+                }
+                
                 SocketManager.sendLine("LIST_USERS")
                 val response = SocketManager.readLine()
                 
