@@ -5,10 +5,11 @@
     android:padding="8dp">
 
     <LinearLayout
+        android:id="@+id/messageContainer"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="end"
-        android:background="#DCF8C6"
+        android:background="@drawable/message_sent_bg"
         android:orientation="vertical"
         android:padding="12dp"
         android:layout_marginStart="48dp"
@@ -18,7 +19,7 @@
             android:id="@+id/tvMessageText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#000000"
+            android:textColor="@color/message_text"
             android:textSize="16sp"
             android:text="Message text" />
 
@@ -27,7 +28,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:textColor="#666666"
+            android:textColor="@color/message_time"
             android:textSize="12sp"
             android:text="12:00" />
     </LinearLayout>

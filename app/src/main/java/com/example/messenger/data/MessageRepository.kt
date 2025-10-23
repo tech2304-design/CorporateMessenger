@@ -27,6 +27,10 @@ class MessageRepository private constructor(private val context: Context) {
     suspend fun insertLocal(msg: MessageEntity) {
         db.messageDao().insert(msg)
     }
+    
+    suspend fun deleteLocal(messageId: Long) {
+        db.messageDao().deleteById(messageId)
+    }
 
     fun sendText(recipientId: Long, text: String) {
         CoroutineScope(Dispatchers.IO).launch {

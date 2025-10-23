@@ -5,4 +5,10 @@
     <color name="teal_700">#018786</color>
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
+    
+    <!-- Message bubble colors -->
+    <color name="message_sent_bg">#ADD8E6</color>
+    <color name="message_received_bg">#90EE90</color>
+    <color name="message_text">#000000</color>
+    <color name="message_time">#666666</color>
 </resources>
